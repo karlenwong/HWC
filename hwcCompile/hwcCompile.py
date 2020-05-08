@@ -14,7 +14,7 @@ def parse_options():
 
     while len(sys.argv) > 1:
         if sys.argv[1].startswith("--debug="):
-            phase = sys.argv[1][8:]
+            opts["debug"] = sys.argv[1][8:]
             sys.argv = sys.argv[:1] + sys.argv[2:]
 
         elif sys.argv[1][0] == '-':
@@ -29,9 +29,8 @@ def parse_options():
                 print("ERROR: The input file must be the last argument on the command line.")
                 sys.exit(1)
             opts["infile"] = sys.argv[1]
+            sys.argv = sys.argv[:1] + sys.argv[2:]
 
-    # TEMPORARY
-    opts["infile"] = "/dev/fd/0"
     # TEMPORARY
     opts["outfile"] = "dummy_output_file.wire"
 
@@ -52,16 +51,40 @@ if __name__ == "__main__":
     if root_file is None:
         sys.exit(1)    # the parse function is responsible for printing out error messages
     if opts["debug"] == "parse":
+        print("---- DEBUG: DUMPING PARSE TREE ----")
         root_file.dump()
         sys.exit(0)
 
 
-    for phase in [10,20,30,35,40]:
-        if root_file.do_phase(phase) is False:
-            TODO
-        if opts["debug"] == "semantic_phase{}".format(phase):
-            root_file.dump()
-            sys.exit()
+    if root_file.do_phase10() is False:
+        TODO
+    if opts["debug"] == "semantic_phase10":
+        root_file.dump()
+        sys.exit()
+
+    if root_file.do_phase20() is False:
+        TODO
+    if opts["debug"] == "semantic_phase20":
+        root_file.dump()
+        sys.exit()
+
+    if root_file.do_phase30() is False:
+        TODO
+    if opts["debug"] == "semantic_phase30":
+        root_file.dump()
+        sys.exit()
+
+    if root_file.do_phase35() is False:
+        TODO
+    if opts["debug"] == "semantic_phase35":
+        root_file.dump()
+        sys.exit()
+
+    if root_file.do_phase40() is False:
+        TODO
+    if opts["debug"] == "semantic_phase40":
+        root_file.dump()
+        sys.exit()
 
 
     TODO    # port this over from the C code below

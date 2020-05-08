@@ -1,4 +1,4 @@
-HWC_BIN=hwcCompile
+HWC_BIN=hwcCompile.py
 
 HWC_SUFFIX=hwc
 

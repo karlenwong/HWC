@@ -388,6 +388,9 @@ class TOK:
     def __str__(self):
         return "TOK({})".format(self.txt)
 
+    def dump(self, pre):
+        print(pre+'"{}"'.format(self.txt))
+
 
 
 class pushbackable:
