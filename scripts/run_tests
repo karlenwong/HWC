@@ -39,7 +39,7 @@ do
   rm $base.debug.$phase.* 2>/dev/null
 
   {
-    ./$HWC_BIN --debug=$phase < $base.$HWC_SUFFIX
+    ./$HWC_BIN --debug=$phase $base.$HWC_SUFFIX
     rc=$?
 
     echo
