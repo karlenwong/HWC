@@ -2,6 +2,8 @@ from hwc_file import HWC_File
 from hwc_part import HWC_Part
 from hwc_plug import HWC_Plug
 from hwc_decl import HWC_Decl
+from hwc_expr import HWC_BinaryExpr, HWC_UnaryExpr, HWC_BaseExpr, HWC_ArrayIndexExpr, HWC_ArraySliceExpr
+from hwc_type import HWC_BitType, HWC_ArrayType, HWC_UnresolvedType
 
 from hwc_connectionStmt import HWC_ConnectionStmt
 
@@ -19,7 +21,7 @@ def parse(infile):
             if tok == TOK("part"):
                 retval.decls.append(parse_PartPlug(tokens, start, part=True))
             elif tok == TOK("plug"):
-                retval.decls.append(parse_PlugPlug(tokens, start, part=False))
+                retval.decls.append(parse_PartPlug(tokens, start, part=False))
             else:
                 assert False    # TODO: report syntax error
 
@@ -32,23 +34,28 @@ def parse(infile):
 
 
 def parse_PartPlug(tokens, start, part):
+    # read the type name
     name,_ignore1,_ignore2 = next(tokens)
     if type(name) != str:
         TODO
 
+    # expect '{'
     tok,_ignore1,_ignore2 = next(tokens)
     if tok != TOK("{"):
         TODO
 
+    # read many statements
     if part:
         decls = parse_Part_Stmts(tokens)
     else:
         decls = parse_Plug_Stmts(tokens)
 
+    # expect '}'
     tok,_ignore1,end = next(tokens)
     if tok != TOK("}"):
         TODO
 
+    # build the parse tree object
     if part:
         return HWC_Part(name, decls, start,end)
     else:
@@ -75,6 +82,10 @@ def parse_Part_Stmts(tokens):
 
         if tok == TOK("subpart"):
             retval.append(parse_Subpart_decl(tokens, start))
+            continue
+
+        if tok == TOK("if"):
+            retval.append(parse_If(tokens, start))
             continue
 
         if tok == TOK("for"):
@@ -108,10 +119,13 @@ def parse_Plug_Stmts(tokens):
 
         if type(tok) != str:
             tokens.pushback_last()
-            decl = parse_Decl(tokens, True, start)
-            if decl.isMemory:
-                TODO
-            retval.append(retval)
+            decls = parse_Decl(tokens, True, start)
+            assert len(decls) > 0
+
+            for decl in decls:
+                if decl.isMemory:
+                    TODO
+                retval.append(decl)
 
     return retval
 
@@ -128,37 +142,59 @@ def parse_Decl(tokens, start, isPublic):
 
     type_ = parse_Type(tokens)
 
-    name,_ignored1,ignored2 = next(tokens)
+    decls = []
 
-    after_name,_ignored,end = next(tokens)
+    while True:
+        name,_ignored1,ignored2 = next(tokens)
+        if type(name) != str:
+            print(name)
+            TODO   # syntax error
 
-    if after_name == TOK("["):
-        TODO
+        decls.append(HWC_Decl(name, type_, isPublic, isMemory))
 
-    if after_name != TOK(";"):
+        after_name,_ignored,end = next(tokens)
+
+        if after_name == TOK("["):
+            TODO
+
+        if after_name == TOK(","):
+            continue    # go read another one!
+
+        if after_name == TOK(";"):
+            break
+
         print(after_name)
         print(start)
         print(end)
         TODO
 
-    return HWC_Decl(name, type_, isPublic, isMemory)
+    return decls
 
 
 
 def parse_Type(tokens):
     tok,start,end = next(tokens)
 
-    if tok == TOK("bit") or type(tok) == str:
-        retval = tok
+    if tok == TOK("bit"):
+        retval = HWC_BitType(start,end)
+    elif type(tok) == str:
+        retval = HWC_UnresolvedType(str)
     else:
         TODO
 
     type_suffix,ignored1,ignored2 = next(tokens)
 
-    if type_suffix == TOK("["):
-        TODO
-    # not an array, I guess!
-    tokens.pushback_last()
+    if type_suffix != TOK("["):
+        tokens.pushback_last()
+    else:
+        count = parse_Expr(tokens)
+
+        tok,ignored,end = next(tokens)
+        if tok != TOK("]"):
+            TODO   # syntax error
+
+        retval = HWC_ArrayType(retval, count, end)
+        # TODO: handle multi-dimensional arrays
 
     return retval
 
@@ -178,9 +214,70 @@ def parse_single_statement(tokens):
 
     semi,ignored1,end = next(tokens)
     if semi != TOK(";"):
+        print(lhs.start)
+        print(semi)
         TODO
 
     return HWC_ConnectionStmt(lhs, rhs)
+
+
+
+def parse_If(tokens, start):
+    TODO
+
+
+
+def parse_For(tokens, start):
+    tok,ignored1,ignored2 = next(tokens)
+    if tok != TOK("("):
+        TODO   # syntax error
+
+    name,nameStart,nameEnd = next(tokens)
+    if type(name) != str:
+        print(name)
+        TODO   # syntax error
+
+    tok,ignored1,ignored2 = next(tokens)
+    if tok != TOK(";"):
+        TODO   # syntax error
+
+    lower = parse_Expr(tokens)
+
+    tok,ignored1,ignored2 = next(tokens)
+    if tok != TOK(".."):
+        TODO   # syntax error
+
+    upper = parse_Expr(tokens)
+
+    tok,ignored1,ignored2 = next(tokens)
+    if tok != TOK(")"):
+        TODO   # syntax error
+
+    body = parse_codeBlock(tokens)
+
+    TODO
+
+
+
+def parse_codeBlock(tokens):
+    # handle single-line, or curly-brace block
+
+    tok,start,ignored = next(tokens)
+
+    if tok == TOK(";"):
+        TODO   # syntax error, bare blocks not allowed in HWC
+
+    if tok != TOK("{"):
+        tokens.pushback_last()
+        TODO   # parse one statement
+
+    stmts = parse_stmts(tokens)
+
+    tok,ignored1,ignored2 = next(tokens)
+    if tok != TOK("}"):
+        TODO   # syntax error
+
+    TODO
 
 
 
@@ -213,18 +310,18 @@ def parse_Expr2(tokens):
             return lhs
 
         rhs = parse_Expr3(tokens)
-        TODO   # build the expression
+        lhs = HWC_BinaryExpr(lhs, op, rhs)
 
 # Expr3: Unary prefix operators (bitwise and logical negation; arithmetic
 #        negation happens later)
 def parse_Expr3(tokens):
-    tok,start,ignored = next(tokens)
-    if tok not in [TOK("!"), TOK("~")]:
+    op,start,ignored = next(tokens)
+    if op not in [TOK("!"), TOK("~")]:
         tokens.pushback_last()
         return parse_Expr4(tokens)
 
     base = parse_Expr3(tokens)    # can recurse, though that would be odd code!
-    TODO
+    return HWC_UnaryExpr(start, op, base)
 
 # Expr4: array indexing and slicing.  Also left-associative, like Expr2 above.
 def parse_Expr4(tokens):
@@ -236,7 +333,13 @@ def parse_Expr4(tokens):
             tokens.pushback_last()
             return base
 
-        TODO
+        indx = parse_Expr(tokens)
+
+        suff,ignored,end = next(tokens)
+        if suff != TOK("]"):
+            TODO   # syntax error
+
+        base = HWC_ArrayIndexExpr(base, indx, end)
 
 # Expr5: dot.  Once again, we've got a left-associative rule
 def parse_Expr5(tokens):
@@ -248,6 +351,7 @@ def parse_Expr5(tokens):
             tokens.pushback_last()
             return base
 
+        print(base.start)
         TODO
 
 # Expr6: arithmetic negation
@@ -258,6 +362,7 @@ def parse_Expr6(tokens):
         return parse_Expr7(tokens)
 
     base = parse_Expr6(tokens)   # again, recursion is odd but legal
+    return HWC_UnaryExpr(start, minus, base)
 
 # Expr7: parens
 def parse_Expr7(tokens):
@@ -279,7 +384,7 @@ def parse_Expr8(tokens):
     tok,start,end = next(tokens)
 
     if type(tok) in [str,int] or tok in [TOK("true"),TOK("false")]:
-        return tok
+        return HWC_BaseExpr(start,end, tok)
 
     TODO   # the old Bison parser also parsed "bit" and "flag".  Do we want to do that here???  I think probably not, since we now have an unambiguous type expression.
 
@@ -357,7 +462,8 @@ def tokenize(infile):
                     val = int(line[:count])
 
             else:
-                operators = ["<<", ">>",
+                operators = ["..",
+                             "<<", ">>",
                              "&&", "||",
                              "==", "!=",
                              "<=", "<", ">=", ">" ] + \
