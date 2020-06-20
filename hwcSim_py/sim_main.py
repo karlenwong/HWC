@@ -1,3 +1,5 @@
+#! /usr/bin/python3
+
 import sys
 
 from wiring.bit_dictionary import Bit_Dictionary
